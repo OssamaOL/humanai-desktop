@@ -1,0 +1,48 @@
+# .github/workflows/pr-check.yml
+# Runs on every pull request to main
+# Blocks merge if build fails
+
+name: PR Check
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  pr-build-check:
+    name: PR Build Check
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Rename vite config
+        run: |
+          if (Test-Path "vite.config.js") {
+            Rename-Item "vite.config.js" "vite.config.mjs"
+          }
+        shell: pwsh
+
+      - name: Build check
+        run: npm run build
+
+      - name: Comment on PR if build passes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ Build passed — safe to merge into main.'
+            })
